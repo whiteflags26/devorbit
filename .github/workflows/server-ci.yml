@@ -32,21 +32,22 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:ci
 
-      # Add verification step before SonarCloud
       - name: Verify coverage file
         run: |
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Coverage file exists with $(wc -l < coverage/lcov.info) lines"
 
+      # Updated SonarCloud action
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5.0.0  # Updated to recommended action
         with:
           projectBaseDir: ./server
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
-            -Dsonar.typescript.tsconfigPath=./tsconfig.json
+            -Dsonar.projectKey=devorbit-server
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.typescript.tsconfigPath=tsconfig.json
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
