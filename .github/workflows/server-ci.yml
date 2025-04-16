@@ -32,10 +32,21 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:ci
 
-      - name: SonarQube Scan
+      # Add verification step before SonarCloud
+      - name: Verify coverage file
+        run: |
+          ls -la coverage/
+          [ -f coverage/lcov.info ] || exit 1
+          echo "Coverage file exists with $(wc -l < coverage/lcov.info) lines"
+
+      - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:
-          projectBaseDir: ./server  # Critical for monorepos
+          projectBaseDir: ./server
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
+            -Dsonar.typescript.tsconfigPath=./tsconfig.json
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
