@@ -17,16 +17,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
-      # Node.js setup with proper cache configuration
+        with:
+          fetch-depth: 0  # Required for SonarQube analysis
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'server/package-lock.json'  # Fixed path (no './')
+          cache-dependency-path: 'server/package-lock.json'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests with coverage
         run: npm run test:ci
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          projectBaseDir: ./server  # Critical for monorepos
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
