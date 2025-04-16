@@ -1,0 +1,44 @@
+name: Server CI with SonarQube
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'server/**'  # Only trigger when server files change
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/**'
+
+jobs:
+  test-and-scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server  # All commands run in /server
+
+    steps:
+      # Checkout code
+      - uses: actions/checkout@v4
+
+      # Setup Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Run tests with coverage
+      - name: Run tests
+        run: npm run test:ci  # Uses --ci --coverage flags
+
+      # SonarQube analysis
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # For PR comments
