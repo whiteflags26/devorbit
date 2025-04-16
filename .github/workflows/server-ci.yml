@@ -13,13 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./server  # Critical for all commands
+        working-directory: ./server
 
     steps:
       - uses: actions/checkout@v4
+      
+      # Node.js setup with proper cache configuration
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'  # Now works because we're in /server
-      - run: npm ci
-      - run: npm run test:ci
+          cache: 'npm'
+          cache-dependency-path: 'server/package-lock.json'  # Fixed path (no './')
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:ci
