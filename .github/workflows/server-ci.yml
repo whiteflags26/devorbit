@@ -44,8 +44,8 @@ jobs:
         with:
           projectBaseDir: ./server
           args: >
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=devorbit-server
+            -Dsonar.organization=whiteflags26
+            -Dsonar.projectKey=whiteflags26_devorbit
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.typescript.tsconfigPath=tsconfig.json
         env:
