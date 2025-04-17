@@ -27,7 +27,7 @@ export default class TurfService {
         ...turfData,
         images: imageUrls,
       });
-
+      console.log("Turf data before saving:", turf);
       return await turf.save();
     } catch (error) {
       console.error(error);
