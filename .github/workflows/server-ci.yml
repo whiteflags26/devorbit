@@ -1,15 +1,13 @@
-name: Server CI
+name: Full CI with SonarQube
 
 on:
   push:
     branches: [main]
-    paths: ['server/**']
   pull_request:
     branches: [main]
-    paths: ['server/**']
 
 jobs:
-  test:
+  test-server:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -18,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for SonarQube analysis
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -26,28 +24,57 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'server/package-lock.json'
 
-      - name: Install dependencies
+      - name: Install server dependencies
         run: npm ci
 
-      - name: Run tests with coverage
+      - name: Run server tests with coverage
         run: npm run test:ci
 
-      - name: Verify coverage file
+      - name: Verify server coverage file
         run: |
-          ls -la coverage/
-          [ -f coverage/lcov.info ] || exit 1
-          echo "Coverage file exists with $(wc -l < coverage/lcov.info) lines"
+          ls -la server/coverage/
+          [ -f server/coverage/lcov.info ] || exit 1
+          echo "Server coverage file exists with $(wc -l < server/coverage/lcov.info) lines"
 
-      # Updated SonarCloud action
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5.0.0  # Updated to recommended action
+  test-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          projectBaseDir: ./server
-          args: >
-            -Dsonar.organization=whiteflags26
-            -Dsonar.projectKey=whiteflags26_devorbit
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.typescript.tsconfigPath=tsconfig.json
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Run client tests with coverage
+        run: |
+          npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
+          npx jest --ci --runInBand --coverage
+
+      - name: Verify client coverage file
+        run: |
+          ls -la client/coverage/
+          [ -f client/coverage/lcov.info ] || exit 1
+          echo "Client coverage file exists with $(wc -l < client/coverage/lcov.info) lines"
+
+  sonarcloud:
+    needs: [test-server, test-client]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
