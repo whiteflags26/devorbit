@@ -35,6 +35,13 @@ jobs:
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
+          
+      - name: Save server coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: server-coverage
+          path: server/coverage/
+          retention-days: 1
 
   test-client:
     runs-on: ubuntu-latest
@@ -44,6 +51,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -54,16 +63,24 @@ jobs:
       - name: Install client dependencies
         run: npm ci
 
-      - name: Run client tests with coverage
-        run: |
-          npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
-          npx jest --ci --runInBand --coverage
+      - name: Install ts-node for Jest TypeScript config
+        run: npm install --save-dev ts-node
 
+      - name: Run client tests with coverage
+        run: npm run test:coverage
+        
       - name: Verify client coverage file
         run: |
-          ls -la client/coverage/
-          [ -f client/coverage/lcov.info ] || exit 1
-          echo "Client coverage file exists with $(wc -l < client/coverage/lcov.info) lines"
+          ls -la coverage/
+          [ -f coverage/lcov.info ] || exit 1
+          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
+          
+      - name: Save client coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: client-coverage
+          path: client/coverage/
+          retention-days: 1
 
   sonarcloud:
     needs: [test-server, test-client]
@@ -72,6 +89,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v3
+        with:
+          path: .
+
+      - name: Prepare coverage reports for SonarQube
+        run: |
+          mkdir -p .coverage
+          cp -r server-coverage/* .coverage/ || echo "No server coverage"
+          cp -r client-coverage/* .coverage/ || echo "No client coverage"
+          ls -la .coverage/
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
