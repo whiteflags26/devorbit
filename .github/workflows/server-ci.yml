@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./server
+        working-directory: ./server  # All commands will run from here
 
     steps:
       - uses: actions/checkout@v4
@@ -22,20 +22,21 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'server/package-lock.json'
+          cache-dependency-path: 'package-lock.json'  # Removed server/ prefix
 
       - name: Install server dependencies
         run: npm ci
 
       - name: Run server tests with coverage
-        run: npm run test:ci
+        run: npm run test:ci  # This runs in ./server already
 
       - name: Verify server coverage file
         run: |
-          ls -la server/coverage/
-          [ -f server/coverage/lcov.info ] || exit 1
-          echo "Server coverage file exists with $(wc -l < server/coverage/lcov.info) lines"
+          ls -la coverage/  # Removed server/ prefix
+          [ -f coverage/lcov.info ] || exit 1
+          echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
 
+          
   test-client:
     runs-on: ubuntu-latest
     defaults:
