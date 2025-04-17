@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { Button, buttonVariants } from './Button'
+import { Button, buttonVariants } from '../components/Button'
 
 // Mock the cn utility if needed
 jest.mock('@/lib/utils/utils', () => ({
