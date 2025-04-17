@@ -44,6 +44,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -55,15 +57,13 @@ jobs:
         run: npm ci
 
       - name: Run client tests with coverage
-        run: |
-          npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
-          npx jest --ci --runInBand --coverage
+        run: npm run test:ci
 
       - name: Verify client coverage file
         run: |
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
-          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
+          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines
 
   sonarcloud:
     needs: [test-server, test-client]
