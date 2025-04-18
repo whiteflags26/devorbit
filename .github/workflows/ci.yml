@@ -63,7 +63,7 @@ jobs:
         run: |
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
-          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines
+          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
 
   sonarcloud:
     needs: [test-server, test-client]
