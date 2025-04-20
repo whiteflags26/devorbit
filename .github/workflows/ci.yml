@@ -3,8 +3,6 @@ name: Full CI with SonarQube
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   test-server:
@@ -79,4 +77,16 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
+  deploy-server:
+    needs: [test-server, test-client]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to Render
+        uses: JorgeLNJunior/render-deploy@v1.3.2
+        with:
+          api_key: ${{ secrets.RENDER_API_KEY }}
+          service_id: ${{ secrets.RENDER_SERVICE_ID }}
+          clear_cache: false
+          wait_deploy: true
