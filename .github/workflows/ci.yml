@@ -91,3 +91,27 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           clear_cache: false
           wait_deploy: true
+  
+  deploy-client:
+    needs: [test-server, test-client]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+        
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+          
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+        
+      - name: Deploy to Vercel
+        run: vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }}
