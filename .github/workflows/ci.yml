@@ -1,4 +1,4 @@
-name: Full CI with SonarQube
+name: Full CI-CD
 
 on:
   push:
