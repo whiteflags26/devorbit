@@ -32,6 +32,15 @@ app.use(
   })
 );
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date(),
+    message: "Health check passed",
+  });
+});
+
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is running");
 });
