@@ -1,0 +1,24 @@
+name: Analysis Workflow
+
+on:
+  workflow_run:
+    workflows: ["Testing Workflow"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
