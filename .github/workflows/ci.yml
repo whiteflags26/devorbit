@@ -33,13 +33,6 @@ jobs:
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
-          
-      - name: Upload server coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: server-coverage
-          path: server/coverage
-          retention-days: 1
 
   test-client:
     runs-on: ubuntu-latest
@@ -69,13 +62,6 @@ jobs:
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
-          
-      - name: Upload client coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: client-coverage
-          path: client/coverage
-          retention-days: 1
 
   sonarcloud:
     needs: [test-server, test-client]
@@ -85,19 +71,30 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
-          
-      - name: Download server coverage report
-        uses: actions/download-artifact@v3
+
+      # Run tests again to generate coverage reports
+      - uses: actions/setup-node@v4
         with:
-          name: server-coverage
-          path: server/coverage
+          node-version: '20'
           
-      - name: Download client coverage report
-        uses: actions/download-artifact@v3
-        with:
-          name: client-coverage
-          path: client/coverage
-          
+      # Setup server coverage
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: ./server
+        
+      - name: Run server tests with coverage
+        run: npm run test:ci
+        working-directory: ./server
+        
+      # Setup client coverage
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: ./client
+        
+      - name: Run client tests with coverage
+        run: npm run test:ci
+        working-directory: ./client
+        
       - name: Debug coverage reports
         run: |
           echo "Server coverage:"
