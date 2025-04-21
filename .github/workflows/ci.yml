@@ -1,8 +1,10 @@
-name: Full CI-CD
+name: Full CI-CD Pipeline with SonarCloud
 
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   test-server:
@@ -14,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Full git history for SonarCloud analysis
 
       - uses: actions/setup-node@v4
         with:
@@ -26,13 +28,19 @@ jobs:
         run: npm ci
 
       - name: Run server tests with coverage
-        run: npm run test:ci
+        run: npm run test:ci  # Should generate coverage/lcov.info
 
       - name: Verify server coverage file
         run: |
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
+
+      - name: Upload server coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: ./server/coverage/lcov.info
 
   test-client:
     runs-on: ubuntu-latest
@@ -55,13 +63,19 @@ jobs:
         run: npm ci
 
       - name: Run client tests with coverage
-        run: npm run test:ci
+        run: npm run test:ci  # Should generate coverage/lcov.info
 
       - name: Verify client coverage file
         run: |
           ls -la coverage/
           [ -f coverage/lcov.info ] || exit 1
           echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
+
+      - name: Upload client coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-coverage
+          path: ./client/coverage/lcov.info
 
   sonarcloud:
     needs: [test-server, test-client]
@@ -72,46 +86,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Download server coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: server-coverage
+          path: ./server/coverage/
+
+      - name: Download client coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: client-coverage
+          path: ./client/coverage/
+
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >
+            -Dsonar.javascript.lcov.reportPaths=server/coverage/lcov.info,client/coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/node_modules/**,**/test/**
+            -Dsonar.testExecutionReportPaths=server/test-report.xml,client/test-report.xml  # If you have test execution reports
 
-  deploy-server:
-    needs: [test-server]
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Deploy to Render
-        uses: JorgeLNJunior/render-deploy@v1.4.5
-        with:
-          api_key: ${{ secrets.RENDER_API_KEY }}
-          service_id: ${{ secrets.RENDER_SERVICE_ID }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clear_cache: false
-          wait_deploy: true
   
-  deploy-client:
-    needs: [test-client]
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./client
-        
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'client/package-lock.json'
-          
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-        
-      - name: Deploy to Vercel
-        run: vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes --name turfmania
