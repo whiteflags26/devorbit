@@ -10,9 +10,8 @@ import organizationRouter from "./modules/organization/organization.route";
 import turfRoutes from './modules/turf/turf.route';
 import turfReviewRoutes from './modules/turf-review/turf-review.route';
 import timeslotRoutes from './modules/timeslot/timeslot.route';
-
 import bookingRoutes from './modules/booking/booking.route'
-
+import { setupHealthMonitoring } from './modules/health-metrics';
 
 
 const app = express();
@@ -32,14 +31,7 @@ app.use(
   })
 );
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    uptime: process.uptime(),
-    timestamp: new Date(),
-    message: "Health check passed",
-  });
-});
+setupHealthMonitoring(app);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is running");
