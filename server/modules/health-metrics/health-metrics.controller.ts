@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import asyncHandler from '../../shared/middleware/async';
 import HealthService from '../health-metrics/health-metrics.service';
+import mongoose from 'mongoose';
 
 export default class HealthController {
   private readonly healthService: HealthService;
@@ -17,14 +18,8 @@ export default class HealthController {
    */
   public basicHealthCheck = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
-      // Check MongoDB connection
-      const isDbConnected = req.app.get('mongoDbConnected') || false;
-      
-      if (isDbConnected) {
-        res.status(200).end();
-      } else {
-        res.status(503).end();
-      }
+      const isDbConnected = mongoose.connection.readyState === 1; // 1 = connected
+      res.status(isDbConnected ? 200 : 503).end();
     }
   );
 
