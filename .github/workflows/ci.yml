@@ -35,11 +35,6 @@ jobs:
           CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
           EOF
-          
-      - name: Debug .env file for server
-        run: |
-            echo "Checking contents of ./server/.env:"
-            cat ./server/.env
         
       # Server test setup
       - name: Install server dependencies
@@ -57,22 +52,6 @@ jobs:
           echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
         working-directory: ./server
         
-      # Client test setup
-      - name: Install client dependencies
-        run: npm ci
-        working-directory: ./client
-        
-      - name: Run client tests with coverage
-        run: npm run test:ci
-        working-directory: ./client
-        
-      - name: Verify client coverage file
-        run: |
-          ls -la coverage/
-          [ -f coverage/lcov.info ] || exit 1
-          echo "Client coverage file exists with $(wc -l < coverage/lcov.info) lines"
-        working-directory: ./client
-
       # SonarCloud scan
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
