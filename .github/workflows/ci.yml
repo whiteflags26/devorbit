@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [reopened, synchronize, opened]
 
 jobs:
   test-and-analyze:
@@ -18,6 +19,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      
+      # Create environment files
+      - name: Create server .env file
+        run: |
+          cat > ./server/.env << EOF
+          PORT=3000
+          MONGO_URI=${{ secrets.MONGO_URI }}
+          MAP_API=${{ secrets.MAP_API }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRE=${{ secrets.JWT_EXPIRE }}
+          EMAIL_USER=${{ secrets.EMAIL_USER }}
+          EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          EOF
           
       # Server test setup
       - name: Install server dependencies
