@@ -36,6 +36,11 @@ jobs:
           CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
           EOF
           
+      - name: Debug .env file for server
+        run: |
+            echo "Checking contents of ./server/.env:"
+            cat ./server/.env
+        
       # Server test setup
       - name: Install server dependencies
         run: npm ci
