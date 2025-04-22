@@ -1,8 +1,8 @@
-name: TurfMania CI/CD Pipeline
+name: Full CI-CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
     types: [reopened, synchronize, opened]
@@ -11,18 +11,15 @@ jobs:
   test-and-analyze:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-
+      
       # Create environment files
       - name: Create server .env file
         run: |
@@ -39,7 +36,7 @@ jobs:
           CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
           EOF
           
-      # Server testing
+      # Server test setup
       - name: Install server dependencies
         run: npm ci
         working-directory: ./server
@@ -55,7 +52,7 @@ jobs:
           echo "Server coverage file exists with $(wc -l < coverage/lcov.info) lines"
         working-directory: ./server
         
-      # Client testing
+      # Client test setup
       - name: Install client dependencies
         run: npm ci
         working-directory: ./client
