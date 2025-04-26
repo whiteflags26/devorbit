@@ -302,4 +302,13 @@ export default class HealthService {
       });
     });
   }
+
+
+  // Deletes metrics older than specified date
+
+  public async cleanupOldMetrics(cutoffDate: Date): Promise<void> {
+    await HealthMetrics.deleteMany({
+      timestamp: { $lt: cutoffDate }
+    });
+  }
 }

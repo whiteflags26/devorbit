@@ -57,7 +57,6 @@ describe('TurfReviewService', () => {
         userId,
         rating: 5,
         review: 'Great turf!'
-        // No images provided
       };
 
       const result = await turfReviewService.createReview(reviewData);

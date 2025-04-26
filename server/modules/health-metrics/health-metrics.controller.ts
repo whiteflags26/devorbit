@@ -26,7 +26,8 @@ export default class HealthController {
   /**
    * @route   GET /health
    * @desc    Detailed health information
-   * @access  Public
+   * @access  Private
+   * @permission get_health_check
    */
   public detailedHealthCheck = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -38,7 +39,8 @@ export default class HealthController {
   /**
    * @route   GET /metrics
    * @desc    Prometheus metrics endpoint
-   * @access  Public
+   * @access  Private
+   * @permission get_health_check
    */
   public getPrometheusMetrics = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -51,7 +53,8 @@ export default class HealthController {
   /**
    * @route   GET /api/v1/metrics/latest
    * @desc    Get the most recent metrics
-   * @access  Public
+   * @access  Private
+   * @permission get_health_check
    */
   public getLatestMetrics = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -67,7 +70,8 @@ export default class HealthController {
   /**
    * @route   GET /api/v1/metrics/history
    * @desc    Get historical metrics
-   * @access  Public
+   * @access  Private
+   * @permission get_health_check
    */
   public getMetricsHistory = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {

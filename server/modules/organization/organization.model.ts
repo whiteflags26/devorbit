@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import validator from 'validator';
 
 interface ILocation {
   place_id: string; // Unique identifier from Barikoi
@@ -16,47 +17,23 @@ interface ILocation {
 export interface IOrganization extends Document {
   name: string;
   facilities: string[];
-  owner:mongoose.Types.ObjectId;
-  userRoles: Array<{
-    user: mongoose.Types.ObjectId;
-    role: 'owner' | 'manager' | 'staff';
-  }>;
-  permissions: Map<string, string[]>;
+
   images: string[];
   turfs: mongoose.Types.ObjectId[];
   location: ILocation;
+
+  orgContactPhone: string; // Mandatory
+  orgContactEmail: string; // Mandatory
 }
 
 const OrganizationSchema: Schema = new Schema(
   {
-    name: { type: String, required: true },
+    name: { type: String, required: true, unique: true, trim: true },
     facilities: { type: [String], default: [] },
     images: { type: [String], default: [] },
     turfs: [{ type: Schema.Types.ObjectId, ref: "Turf" }],
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    userRoles: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-          required: true,
-        },
-        role: {
-          type: String,
-          enum: ['owner', 'manager', 'staff'],
-          required: true,
-        },
-      },
-    ],
-    permissions: {
-      type: Map,
-      of: [String],
-      default: () => new Map(),
-    },
+
+  
     location: {
       place_id: { type: String, required: true },
       address: { type: String, required: true },
@@ -80,6 +57,31 @@ const OrganizationSchema: Schema = new Schema(
       sub_area: String,
       city: { type: String, required: true },
       post_code: String,
+    },
+    orgContactPhone: {
+      type: String,
+      required: true,
+      trim: true,
+      validate: {
+        validator: function (value: string) {
+          // Bangladeshi phone number regex pattern
+          const bdPhoneRegex = /^(?:\+88|88)?(01[3-9]\d{8})$/;
+          return bdPhoneRegex.test(value);
+        },
+        message: "Please provide a valid Bangladeshi phone number",
+      },
+    },
+    orgContactEmail: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function (value: string) {
+          return validator.isEmail(value);
+        },
+        message: "Please provide a valid email address",
+      },
     },
   },
   { timestamps: true }
