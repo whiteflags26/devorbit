@@ -51,31 +51,31 @@ jobs:
             --yes \
             --name turfmania
 
-  deploy-admin:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: ./admin
+  # deploy-admin:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   defaults:
+  #     run:
+  #       working-directory: ./admin
         
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
           
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'client/package-lock.json'
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #         cache: 'npm'
+  #         cache-dependency-path: 'client/package-lock.json'
           
-      - name: Install Vercel CLI
-        run: npm install -g vercel
+  #     - name: Install Vercel CLI
+  #       run: npm install -g vercel
         
-      - name: Deploy to Vercel
-        run: |
-          vercel deploy --prod \
-            --token ${{ secrets.VERCEL_TOKEN }} \
-            --build-env NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
-            --yes \
-            --name admin-turfmania
+  #     - name: Deploy to Vercel
+  #       run: |
+  #         vercel deploy --prod \
+  #           --token ${{ secrets.VERCEL_TOKEN }} \
+  #           --build-env NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
+  #           --yes \
+  #           --name admin-turfmania
