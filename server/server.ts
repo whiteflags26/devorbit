@@ -23,12 +23,16 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(ExpressMongoSanitize());
 app.use(helmet());
+
+const corsConfig = {
+  origin: '*', // Allow all origins
+  credentials: true, // If you need credentials (like cookies or tokens)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow common methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+};
+
 app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3001",
-    credentials: true, // Important for cookies
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  })
+  cors(corsConfig)
 );
 
 setupHealthMonitoring(app);
