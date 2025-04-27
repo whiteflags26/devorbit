@@ -1,4 +1,4 @@
-name: Full CI-CD
+name: Railway CI/CD
 
 on:
   push:
@@ -13,14 +13,35 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
-      - name: Deploy to Render
-        uses: JorgeLNJunior/render-deploy@v1.4.5
-        with:
-          api_key: ${{ secrets.RENDER_API_KEY }}
-          service_id: ${{ secrets.RENDER_SERVICE_ID }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clear_cache: false
-          wait_deploy: true
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Set up environment variables on Railway
+        run: |
+          railway link
+          railway variables set PORT=${{ secrets.PORT }}
+          railway variables set MONGO_PASS=${{ secrets.MONGO_PASS }}
+          railway variables set MONGO_URI=${{ secrets.MONGO_URI }}
+          railway variables set MAP_API=${{ secrets.MAP_API }}
+          railway variables set JWT_SECRET=${{ secrets.JWT_SECRET }}
+          railway variables set JWT_EXPIRE=${{ secrets.JWT_EXPIRE }}
+          railway variables set JWT_COOKIE_EXPIRE=${{ secrets.JWT_COOKIE_EXPIRE }}
+          railway variables set CLIENT_URL=${{ secrets.CLIENT_URL }}
+          railway variables set EMAIL_USER=${{ secrets.EMAIL_USER }}
+          railway variables set EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+          railway variables set CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          railway variables set CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          railway variables set CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          
+      - name: Deploy to Railway
+        run: railway up
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
   
   deploy-client:
     runs-on: ubuntu-latest
@@ -50,32 +71,3 @@ jobs:
             --build-env NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
             --yes \
             --name turfmania
-
-  # deploy-admin:
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   defaults:
-  #     run:
-  #       working-directory: ./admin
-        
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-          
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #         cache: 'npm'
-  #         cache-dependency-path: 'client/package-lock.json'
-          
-  #     - name: Install Vercel CLI
-  #       run: npm install -g vercel
-        
-  #     - name: Deploy to Vercel
-  #       run: |
-  #         vercel deploy --prod \
-  #           --token ${{ secrets.VERCEL_TOKEN }} \
-  #           --build-env NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
-  #           --yes \
-  #           --name admin-turfmania
