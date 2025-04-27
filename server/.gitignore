@@ -44,6 +44,3 @@ seed.ts
 
 # Coverage directory used by tools 
 coverage/
-
-# Temporary files
-uploads/

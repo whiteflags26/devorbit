@@ -18,14 +18,11 @@ const config: Config.InitialOptions = {
   ],
   coverageThreshold: {
     global: {
-      branches: 20,
-      functions: 20,
-      lines: 20,
-      statements: 20,
+      branches: 50,
+      functions: 50,
+      lines: 50,
+      statements: 50,
     },
-  },
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1'
   },
   verbose: true,
   setupFilesAfterEnv: ["./jest.setup.ts"],

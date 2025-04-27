@@ -27,15 +27,11 @@ const turfReviewController = new TurfReviewController();
 router.post("/review/", protect, upload.array("images", 2), turfReviewController.createTurfReview);
 router.put("/review/:reviewId", protect, upload.array("images", 2), turfReviewController.updateReview);
 router.delete("/review/:reviewId", protect, turfReviewController.deleteTurfReview);
-router.get("/user/", protect, turfReviewController.getReviewsByUser);
-router.get("/turf/:turfId", protect, turfReviewController.getReviewsByTurf);
-router.get("/has-reviewed/:turfId", protect, turfReviewController.hasUserReviewedTurf);
 
 // Public routes
-router.get("/turf/:turfId/public", turfReviewController.getReviewsByTurfPublic);
+router.get("/turf/:turfId", turfReviewController.getReviewsByTurf);
 router.get("/review/:reviewId", turfReviewController.getReviewById);
-router.get("/turf-summary/:turfId", turfReviewController.getTurfReviewSummary);
-router.get("/organization-summary/:organizationId", turfReviewController.getOrganizationTurfReviewSummary);
-
+router.get("/summary/:turfId", turfReviewController.getTurfReviewSummary);
+router.get("/user/:userId", turfReviewController.getReviewsByUser);
 
 export default router;

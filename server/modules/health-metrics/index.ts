@@ -35,7 +35,6 @@ export function setupHealthMonitoring(app: express.Application): void {
     next();
   });
 
-  
   // Register the routes
   app.use('/health', healthRouter);
   app.use('/metrics', metricsRouter);
@@ -44,22 +43,6 @@ export function setupHealthMonitoring(app: express.Application): void {
   // Start periodic metrics collection
   startPeriodicMetricsCollection(healthService);
 }
-
-async function startMetricsCleanup(healthService: HealthService) {
-  const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // Run daily
-  const RETENTION_DAYS = 7; // Keep data for 7 days
-
-  setInterval(async () => {
-    try {
-      const cutoffDate = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
-      await healthService.cleanupOldMetrics(cutoffDate);
-      console.log(`Cleaned up metrics older than ${RETENTION_DAYS} days`);
-    } catch (error) {
-      console.error('Metrics cleanup failed:', error);
-    }
-  }, CLEANUP_INTERVAL);
-}
-
 
 /**
  * Starts periodic collection of system metrics
@@ -70,13 +53,11 @@ function startPeriodicMetricsCollection(healthService: HealthService): void {
   healthService.collectAndStoreMetrics()
     .catch(error => console.error('Initial metrics collection failed:', error));
   
-  // Then collect every 20 minutes
+  // Then collect every 10 minutes
   setInterval(() => {
     healthService.collectAndStoreMetrics()
       .catch(error => console.error('Periodic metrics collection failed:', error));
-  }, 20 * 60 * 1000);
-  
-  startMetricsCleanup(healthService);
+  }, 10 * 60 * 1000);
 }
 
 // Export controllers, services, models
