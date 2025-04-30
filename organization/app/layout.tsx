@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { AuthProvider } from "@/lib/contexts/authContext";
+import { Toaster } from "react-hot-toast";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TurfMania",
-  description: "",
+  title: "TurfMania Organization",
+  description: "Streamlining the Turf Industry in Bangladesh",
 };
 
 export default function RootLayout({
@@ -27,7 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+         
+            {children}
+          
+          <Toaster position="top-center" />
+        </AuthProvider>
       </body>
     </html>
   );

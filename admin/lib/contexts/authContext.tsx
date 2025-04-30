@@ -7,6 +7,7 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -36,7 +37,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       );
 
-      console.log('Auth check response:', response.data);
+      ;
 
       if (response.status === 200 && response.data?.data) {
         console.log('User authenticated:', response.data.data);
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async (): Promise<void> => {
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/admin/logout`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/logout`,
         {},
         {
           withCredentials: true,
@@ -146,15 +147,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       );
       setUser(null);
-      router.push('/admin/login');
+      router.push('/');
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
 
   const hasPermission = (permissionName: string): boolean => {
-    if (!user || !user.permissions) return false;
-    return user.permissions.some(p => p.name === permissionName);
+    return user?.permissions?.some(p => p.name === permissionName) ?? false;
   };
 
   useEffect(() => {
@@ -165,10 +165,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
   }, [pathname]);
+  const authContextValue = useMemo(() => ({
+    user,
+    loading,
+    checkAuth,
+    logout,
+    login,
+    hasPermission,
+  }), [user, loading, checkAuth, logout, login, hasPermission]);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, checkAuth, logout, login, hasPermission }}
+      value={authContextValue}
     >
       {children}
     </AuthContext.Provider>

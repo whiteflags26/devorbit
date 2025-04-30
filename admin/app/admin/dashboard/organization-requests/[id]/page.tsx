@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -8,7 +7,9 @@ import {
   rejectOrganizationRequest,
 } from '@/services/organizationService';
 
-import { ActionButton } from '@/components/buttons/ActionButton';
+import { ActionButton } from '@/component/buttons/ActionButton';
+import { handleAxiosError } from '@/lib/utils/handleAxiosError';
+import { OrganizationRequest } from '@/types/organization';
 import { format } from 'date-fns';
 import {
   Activity,
@@ -29,63 +30,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
-// Types
-interface Coordinates {
-  type: string;
-  coordinates: number[];
-}
-
-interface Location {
-  coordinates: Coordinates;
-  place_id: string;
-  address: string;
-  city: string;
-  area?: string;
-  sub_area?: string;
-  post_code?: string;
-}
-
 interface User {
   _id: string;
   first_name: string;
   last_name: string;
   email: string;
-}
-
-interface Organization {
-  location: Location;
-  _id: string;
-  name: string;
-  facilities: string[];
-  images: string[];
-  turfs: string[];
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
-
-interface OrganizationRequest {
-  location: Location;
-  _id: string;
-  requesterId: User;
-  status: string;
-  organizationName: string;
-  facilities: string[];
-  contactPhone: string;
-  ownerEmail: string;
-  requestNotes: string;
-  images: string[];
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-  processingAdminId?: User;
-  processingStartedAt?: string;
-  organizationId?: Organization;
-}
-
-interface ApiResponse {
-  success: boolean;
-  data: OrganizationRequest;
 }
 
 export default function OrganizationRequestDetailPage() {
@@ -106,14 +55,14 @@ export default function OrganizationRequestDetailPage() {
         setIsLoading(true);
         setError(null);
 
-        const response = (await getSingleOrganizationRequest(
+        const response = await getSingleOrganizationRequest(
           params.id as string,
-        )) as unknown as ApiResponse;
+        );
 
-        setRequest(response.data);
+        setRequest(response);
 
-        if (response.data.images && response.data.images.length > 0) {
-          setSelectedImage(response.data.images[0]);
+        if (response.images && response.images.length > 0) {
+          setSelectedImage(response.images[0]);
         }
       } catch (err) {
         setError('Failed to load organization request details');
@@ -137,17 +86,17 @@ export default function OrganizationRequestDetailPage() {
       const response = await processOrganizationRequest(params.id as string);
 
       // Update the local state with the new request data
-      setRequest(response.data);
+      setRequest(response);
 
       // Show success message
       toast.success('Request processing started successfully');
 
       // Route to organization forms page
       router.push(`/admin/dashboard/organization-form/${params.id}`);
-    } catch (err: any) {
-      console.error('Failed to process request:', err);
-      setError(err.message ?? 'Failed to process request');
-      toast.error(err.message ?? 'Failed to process request');
+    } catch (err: unknown) {
+      const error_message = handleAxiosError(err, 'Failed to reject request');
+      setError(error_message);
+      toast.error(error_message);
     } finally {
       setProcessing(false);
     }
@@ -162,12 +111,12 @@ export default function OrganizationRequestDetailPage() {
       const response = await CancelProcessOrganizationRequest(
         params.id as string,
       );
-      setRequest(response.data);
+      setRequest(response);
       toast.success('Processing cancelled successfully');
-    } catch (err: any) {
-      console.error('Failed to cancel processing:', err);
-      setError(err.message ?? 'Failed to cancel processing');
-      toast.error(err.message ?? 'Failed to cancel processing');
+    } catch (err: unknown) {
+      const error_message = handleAxiosError(err, 'Failed to reject request');
+      setError(error_message);
+      toast.error(error_message);
     } finally {
       setIsCancelling(false);
     }
@@ -187,13 +136,13 @@ export default function OrganizationRequestDetailPage() {
         params.id as string,
         rejectionNotes.trim(),
       );
-      setRequest(response.data);
+      setRequest(response);
       toast.success('Request rejected successfully');
       setRejectionNotes(''); // Reset notes after successful rejection
     } catch (err: any) {
-      console.error('Failed to reject request:', err);
-      setError(err.message ?? 'Failed to reject request');
-      toast.error(err.message ?? 'Failed to reject request');
+      const error_message = handleAxiosError(err, 'Failed to reject request');
+      setError(error_message);
+      toast.error(error_message);
     } finally {
       setIsRejecting(false);
     }
@@ -368,11 +317,11 @@ export default function OrganizationRequestDetailPage() {
                     <User className="w-4 h-4 mr-1" />
                     Requester
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900">
+                  {/* <dd className="mt-1 text-sm text-gray-900">
                     {request.requesterId.first_name}{' '}
                     {request.requesterId.last_name} ({request.requesterId.email}
                     )
-                  </dd>
+                  </dd> */}
                 </div>
 
                 {request.processingAdminId && (
@@ -382,9 +331,9 @@ export default function OrganizationRequestDetailPage() {
                       Processing Admin
                     </dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {request.processingAdminId.first_name}{' '}
+                      {/* {request.}{' '}
                       {request.processingAdminId.last_name} (
-                      {request.processingAdminId.email})
+                      {request.processingAdminId.email}) */}
                     </dd>
                   </div>
                 )}
@@ -486,7 +435,7 @@ export default function OrganizationRequestDetailPage() {
                       Organization Name
                     </dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {request.organizationId.name}
+                      {request.orgContactEmail}
                     </dd>
                   </div>
 

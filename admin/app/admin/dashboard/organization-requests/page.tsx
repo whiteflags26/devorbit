@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 
 import { FilterPanel } from '@/component/admin/organization-requests/FilterPanel';
 import { RequestContent } from '@/component/admin/organization-requests/RequestContent';
+import ErrorDisplay from '@/component/errors/ErrorDisplay';
 import {
   getOrganizationRequests,
   RequestFilters,
@@ -35,17 +36,23 @@ export default function OrganizationRequestsPage() {
       setError(null);
 
       const response = await getOrganizationRequests(filters);
-
       if (!response?.success || !response?.data?.requests) {
         throw new Error('Invalid response format');
       }
 
       setData(response);
-      toast.success('Data loaded successfully');
     } catch (err: any) {
-      console.error('Failed to fetch organization requests:', err);
-      setError(err.message ?? 'Failed to load organization requests');
-      toast.error(err.message ?? 'Failed to load organization requests');
+      const statusCode = err.response?.status;
+
+      const errorMessage = err.response?.data?.message ?? err.message;
+
+      if (statusCode === 403) {
+        setError('Unauthorized');
+        return;
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage ?? 'Failed to load organization requests');
     } finally {
       setIsLoading(false);
     }
@@ -98,6 +105,10 @@ export default function OrganizationRequestsPage() {
     }
     return 'text-gray-500 hover:bg-gray-100';
   };
+
+  if (error === 'Unauthorized') {
+    return <ErrorDisplay statusCode={403} />;
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

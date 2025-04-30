@@ -5,6 +5,7 @@ import {
   getAllFacilities,
   getSingleOrganizationRequest,
 } from '@/services/organizationService';
+import { RequestStatus } from '@/types/organization';
 import {
   ArrowLeft,
   Building,
@@ -18,7 +19,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
-// Mock facility options
+// Add interface for requester state
+interface RequesterState {
+  id: {
+    _id: string;
+    first_name: string;
+    email: string;
+  } | null;
+  processingAdminId?: {
+    _id: string;
+    first_name: string;
+    email: string;
+  } | null;
+}
 
 export default function EditOrganizationForm() {
   const router = useRouter();
@@ -38,14 +51,38 @@ export default function EditOrganizationForm() {
   const [facilities, setFacilities] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]); // Store URLs for preview
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contactPhone, setContactPhone] = useState('');
   const [orgContactPhone, setOrgContactPhone] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [orgContactEmail, setOrgContactEmail] = useState('');
-  const [adminNotes, setAdminNotes] = useState('');
+  const [requestNotes, setRequestNotes] = useState('');
+  const [status, setStatus] = useState<RequestStatus>('pending');
+  const [processingStartedAt, setProcessingStartedAt] = useState<
+    string | undefined
+  >();
+  const [requesterState, setRequesterState] = useState<RequesterState>({
+    id: null,
+    processingAdminId: null,
+  });
+
   const [facilityOptions, setFacilityOptions] = useState<string[]>([]);
+
+  // Create object URLs for new images
+  useEffect(() => {
+    const urls = newImageFiles.map(file => URL.createObjectURL(file));
+    setImageUrls(urls);
+
+    // Clean up function to revoke Object URLs when component unmounts
+    // or when newImageFiles changes
+    return () => {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [newImageFiles]);
 
   // Fetch organization data
   useEffect(() => {
@@ -54,10 +91,10 @@ export default function EditOrganizationForm() {
         setFetchLoading(true);
         const response = await getSingleOrganizationRequest(organizationId);
 
-        if (response.success && response.data) {
-          const orgData = response.data;
+        if (response) {
+          const orgData = response;
 
-          // Populate form fields
+          // Update all form fields
           setName(orgData.organizationName);
           setAddress(orgData.location.address);
           setPlaceId(orgData.location.place_id);
@@ -67,11 +104,30 @@ export default function EditOrganizationForm() {
           setPostCode(orgData.location.post_code ?? '');
           setLongitude(orgData.location.coordinates.coordinates[0]);
           setLatitude(orgData.location.coordinates.coordinates[1]);
-
           setFacilities(orgData.facilities);
-          setExistingImages(orgData.images || []);
-          setOrgContactPhone(orgData.orgContactPhone ?? '');
-          setOrgContactEmail(orgData.orgContactEmail ?? '');
+          setExistingImages(orgData.images ?? []);
+          setOrgContactPhone(orgData.orgContactPhone); // Fixed variable name
+          setOrgContactEmail(orgData.orgContactEmail);
+          setContactPhone(orgData.contactPhone);
+          setOwnerEmail(orgData.ownerEmail);
+          setRequestNotes(orgData.requestNotes ?? '');
+          setStatus(orgData.status);
+          setProcessingStartedAt(orgData.processingStartedAt);
+          // Update requester state
+          setRequesterState({
+            id: {
+              _id: orgData.requesterId._id,
+              first_name: orgData.requesterId.first_name,
+              email: orgData.requesterId.email,
+            },
+            processingAdminId: orgData.processingAdminId
+              ? {
+                  _id: orgData.processingAdminId._id,
+                  first_name: orgData.processingAdminId.first_name,
+                  email: orgData.processingAdminId.email,
+                }
+              : null,
+          });
         }
       } catch (err: any) {
         console.error('Error fetching organization data:', err);
@@ -114,53 +170,78 @@ export default function EditOrganizationForm() {
     );
   };
 
-
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const totalImagesCount = existingImages.length + newImageFiles.length;
-      const remainingSlots = 5 - totalImagesCount;
-
-      if (remainingSlots <= 0) {
-        toast.error('Maximum 5 images allowed');
-        return;
-      }
-
-      const files = Array.from(e.target.files).slice(0, remainingSlots);
-
-      // Validate each file
-      const validFiles = files.filter(file => {
-        const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(
-          file.type,
-        );
-        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
-        return isValidType && isValidSize;
-      });
-
-      if (validFiles.length !== files.length) {
-        toast.error(
-          'Some files were skipped. Please ensure all files are images under 5MB.',
-        );
-      }
-
-      setNewImageFiles(prev => [...prev, ...validFiles]);
+    // Check if the target exists and has files
+    if (!e.target || !e.target.files || e.target.files.length === 0) {
+      return;
     }
+
+    const totalImagesCount = existingImages.length + newImageFiles.length;
+    const remainingSlots = 5 - totalImagesCount;
+
+    if (remainingSlots <= 0) {
+      toast.error('Maximum 5 images allowed');
+      return;
+    }
+
+    // Safely convert FileList to array and limit to remaining slots
+    const fileList = e.target.files;
+    const filesArray = Array.from(fileList).slice(0, remainingSlots);
+
+    // Validate each file
+    const validFiles = filesArray.filter(file => {
+      const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(
+        file.type,
+      );
+      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+      return isValidType && isValidSize;
+    });
+
+    if (validFiles.length !== filesArray.length) {
+      toast.error(
+        'Some files were skipped. Please ensure all files are images under 5MB.',
+      );
+    }
+
+    setNewImageFiles(prev => [...prev, ...validFiles]);
+
+    // Reset input value to allow selecting the same file again if needed
+    e.target.value = '';
   };
 
   const removeExistingImage = (index: number) => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const removeNewImage = (index: number) => {
-    setNewImageFiles(prev => prev.filter((_, i) => i !== index));
+  const removeNewImage = (fileName: string) => {
+    setNewImageFiles(prev => prev.filter(file => file.name !== fileName));
+    // Also clean up the corresponding URL
+    const index = newImageFiles.findIndex(file => file.name === fileName);
+    if (index !== -1) {
+      URL.revokeObjectURL(imageUrls[index]);
+      setImageUrls(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null); // Clear any previous errors
 
     try {
-      // Create the payload object
+      // Validate required fields
+      if (!isFormValid) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      // Validate image sizes before submission
+      const oversizedImages = newImageFiles.filter(
+        file => file.size > 5 * 1024 * 1024,
+      );
+      if (oversizedImages.length > 0) {
+        throw new Error('Some images exceed the 5MB size limit');
+      }
+
       const payload = {
         name,
         facilities,
@@ -176,11 +257,18 @@ export default function EditOrganizationForm() {
           city,
           post_code: postCode || undefined,
         },
+        contactPhone,
+        ownerEmail,
+        requestNotes,
         orgContactPhone,
         orgContactEmail,
-        requestId: params.id || null,
-        adminNotes,
-        wasEdited: 'True',
+        requestId: organizationId,
+        status,
+        processingStartedAt,
+        images: existingImages,
+        newImages: newImageFiles,
+        requesterId: requesterState.id?._id,
+        processingAdminId: requesterState.processingAdminId?._id,
       };
 
       const response = await createOrganization(payload);
@@ -189,10 +277,12 @@ export default function EditOrganizationForm() {
         setSuccess(true);
         toast.success('Organization updated successfully!');
         router.push('/admin/dashboard/organization-requests');
+      } else {
+        throw new Error(response.message ?? 'Failed to update organization');
       }
     } catch (err: any) {
       console.error('Error updating organization:', err);
-      setError(err.message ?? 'Failed to update organization');
+      setError(err.message ?? 'An unexpected error occurred');
       toast.error(err.message ?? 'Failed to update organization');
     } finally {
       setLoading(false);
@@ -205,8 +295,8 @@ export default function EditOrganizationForm() {
     placeId &&
     city &&
     facilities.length > 0 &&
-    orgContactPhone &&
-    orgContactEmail;
+    contactPhone &&
+    ownerEmail;
 
   const goBack = () => {
     router.back();
@@ -300,6 +390,7 @@ export default function EditOrganizationForm() {
               </div>
               <div className="p-6">
                 <div className="space-y-4">
+                  {/* Organization Name field */}
                   <div>
                     <label
                       htmlFor="name"
@@ -314,60 +405,106 @@ export default function EditOrganizationForm() {
                       onChange={e => setName(e.target.value)}
                       className={`${inputClasses} placeholder-gray-500`}
                       placeholder="Enter organization name"
+                      required
                     />
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="orgContactPhone"
-                      className="block text-sm font-medium text-gray-900"
-                    >
-                      Contact Phone*
-                    </label>
-                    <input
-                      type="tel"
-                      id="orgContactPhone"
-                      value={orgContactPhone}
-                      onChange={e => setOrgContactPhone(e.target.value)}
-                      className={`${inputClasses} placeholder-gray-500`}
-                      placeholder="+8801XXXXXXXXX"
-                      pattern="\+880\d{10}"
-                    />
+                  {/* Contact Information Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Owner Contact Information */}
+                    <div>
+                      <label
+                        htmlFor="contactPhone"
+                        className="block text-sm font-medium text-gray-900"
+                      >
+                        Owner Contact Phone*
+                      </label>
+                      <input
+                        type="tel"
+                        id="contactPhone"
+                        value={contactPhone}
+                        onChange={e => setContactPhone(e.target.value)}
+                        className={`${inputClasses} placeholder-gray-500`}
+                        placeholder="+01XXXXXXXXX"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="ownerEmail"
+                        className="block text-sm font-medium text-gray-900"
+                      >
+                        Owner Email*
+                      </label>
+                      <input
+                        type="email"
+                        id="ownerEmail"
+                        value={ownerEmail}
+                        onChange={e => setOwnerEmail(e.target.value)}
+                        className={`${inputClasses} placeholder-gray-500`}
+                        placeholder="owner@example.com"
+                        required
+                      />
+                    </div>
+
+                    {/* Organization Contact Information */}
+                    <div>
+                      <label
+                        htmlFor="orgContactPhone"
+                        className="block text-sm font-medium text-gray-900"
+                      >
+                        Organization Contact Phone*
+                      </label>
+                      <input
+                        type="tel"
+                        id="orgContactPhone"
+                        value={orgContactPhone}
+                        onChange={e => setOrgContactPhone(e.target.value)}
+                        className={`${inputClasses} placeholder-gray-500`}
+                        placeholder="01XXXXXXXXX"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="orgContactEmail"
+                        className="block text-sm font-medium text-gray-900"
+                      >
+                        Organization Email*
+                      </label>
+                      <input
+                        type="email"
+                        id="orgContactEmail"
+                        value={orgContactEmail}
+                        onChange={e => setOrgContactEmail(e.target.value)}
+                        className={`${inputClasses} placeholder-gray-500`}
+                        placeholder="contact@organization.com"
+                        required
+                      />
+                    </div>
                   </div>
 
+                  {/* Request Notes */}
                   <div>
                     <label
-                      htmlFor="orgContactEmail"
+                      htmlFor="requestNotes"
                       className="block text-sm font-medium text-gray-900"
                     >
-                      Contact Email*
-                    </label>
-                    <input
-                      type="email"
-                      id="orgContactEmail"
-                      value={orgContactEmail}
-                      onChange={e => setOrgContactEmail(e.target.value)}
-                      className={`${inputClasses} placeholder-gray-500`}
-                      placeholder="organization@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="adminNotes"
-                      className="block text-sm font-medium text-gray-900"
-                    >
-                      Admin Notes
+                      Request Notes
                     </label>
                     <textarea
-                      id="adminNotes"
-                      value={adminNotes}
-                      onChange={e => setAdminNotes(e.target.value)}
+                      id="requestNotes"
+                      value={requestNotes}
+                      onChange={e => setRequestNotes(e.target.value)}
                       className={`${inputClasses} placeholder-gray-500`}
-                      placeholder="Add any administrative notes here..."
+                      placeholder="Add any notes about this request..."
                       rows={3}
                     />
                   </div>
+
+                  {/* Add Status field if needed */}
                 </div>
               </div>
             </div>
@@ -588,25 +725,27 @@ export default function EditOrganizationForm() {
                       </h3>
                       <div className="grid grid-cols-2 gap-2">
                         {existingImages.map((imageUrl, idx) => (
-                          <div
-                            key={`existing-${idx}`}
-                            className="relative group"
-                          >
+                          <div key={`${imageUrl}`} className="relative group">
                             <div className="aspect-square w-full overflow-hidden rounded-md">
                               <img
                                 src={imageUrl}
-                                alt={`Existing image ${idx + 1}`}
+                                alt={`Item ${idx + 1}`}
                                 className="object-cover w-full h-full"
+                                onError={e => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/placeholder-image.jpg';
+                                  target.alt = 'Not available';
+                                }}
                               />
-                              <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => removeExistingImage(idx)}
-                                  className="bg-red-500 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-red-600"
-                                >
-                                  Remove
-                                </button>
-                              </div>
+                              {/* Add remove button */}
+                              <button
+                                type="button"
+                                onClick={() => removeExistingImage(idx)}
+                                className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label="Remove image"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -640,7 +779,7 @@ export default function EditOrganizationForm() {
                       <input
                         id="imageUpload"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         multiple
                         className="hidden"
                         onChange={handleImageUpload}
@@ -656,23 +795,34 @@ export default function EditOrganizationForm() {
                         New Images
                       </h3>
                       <div className="grid grid-cols-2 gap-2">
-                        {newImageFiles.map((file, idx) => (
-                          <div key={`new-${idx}`} className="relative group">
+                        {newImageFiles.map(file => (
+                          <div
+                            key={`${file.name}-${file.lastModified}`}
+                            className="relative group"
+                          >
                             <div className="aspect-square w-full overflow-hidden rounded-md">
                               <img
-                                src={URL.createObjectURL(file)}
-                                alt={`New image ${idx + 1}`}
+                                src={
+                                  imageUrls[newImageFiles.indexOf(file)] ||
+                                  '/placeholder-image.jpg'
+                                }
+                                alt={file.name}
                                 className="object-cover w-full h-full"
+                                onError={e => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/placeholder-image.jpg';
+                                  target.alt = 'Not available';
+                                }}
                               />
-                              <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => removeNewImage(idx)}
-                                  className="bg-red-500 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-red-600"
-                                >
-                                  Remove
-                                </button>
-                              </div>
+                              {/* Add remove button */}
+                              <button
+                                type="button"
+                                onClick={() => removeNewImage(file.name)}
+                                className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label="Remove image"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
                             </div>
                           </div>
                         ))}

@@ -1,5 +1,6 @@
 'use client';
 
+import ErrorDisplay from '@/component/errors/ErrorDisplay';
 import {
   createOrganization,
   getAllFacilities,
@@ -10,6 +11,11 @@ import {
 } from '@/utils/image-upload';
 import { Building, Check, MapPin, Package, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+
+interface ImageFile extends File {
+  preview?: string;
+}
 
 export default function OrganizationForm() {
   const [name, setName] = useState('');
@@ -22,7 +28,7 @@ export default function OrganizationForm() {
   const [longitude, setLongitude] = useState(0);
   const [latitude, setLatitude] = useState(0);
   const [facilities, setFacilities] = useState<string[]>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +36,21 @@ export default function OrganizationForm() {
   const [orgContactEmail, setOrgContactEmail] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [facilityOptions, setFacilityOptions] = useState<string[]>([]);
+
+  // Add these new state declarations at the top
+  const [contactPhone, setContactPhone] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+
+  useEffect(() => {
+    // Cleanup function to revoke object URLs
+    return () => {
+      imageFiles.forEach(file => {
+        if (file.preview) {
+          URL.revokeObjectURL(file.preview);
+        }
+      });
+    };
+  }, [imageFiles]);
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -61,20 +82,27 @@ export default function OrganizationForm() {
     if (!e.target.files) return;
 
     const result = processImageUpload(
-      Array.from(e.target.files), // Convert FileList to array
-      [], // No existing images
+      Array.from(e.target.files),
+      [], // No existing images initially
       {
         maxImages: 5,
         allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
       },
     );
 
-    if (!result || !result.isValid) {
-      setError(result?.errorMessage || 'Image upload failed');
+    if (!result.isValid) {
+      toast.error(result.errorMessage ?? 'Image upload failed');
       return;
     }
 
-    setImageFiles(prev => [...prev, ...result.files]);
+    // Create ImageFile objects with previews
+    const newFiles: ImageFile[] = result.files.map(file => {
+      const imageFile = file as ImageFile;
+      imageFile.preview = URL.createObjectURL(file);
+      return imageFile;
+    });
+
+    setImageFiles(prev => [...prev, ...newFiles]);
   };
 
   const removeImage = (index: number) => {
@@ -108,19 +136,50 @@ export default function OrganizationForm() {
       formData.set('orgContactPhone', orgContactPhone);
       formData.set('orgContactEmail', orgContactEmail);
       formData.set('adminNotes', adminNotes);
+      formData.set('contactPhone', contactPhone);
+      formData.set('ownerEmail', ownerEmail);
       formData.set('wasEdited', 'False');
 
       // Use the utility function to prepare images
-      const preparedFormData = prepareImagesForSubmission(formData, imageFiles);
+      const preparedFormData = prepareImagesForSubmission(
+        formData,
+        imageFiles,
+        [], // No existing images for new organization
+      );
 
-      // Call the backend service
-      const response = await createOrganization(preparedFormData);
-      console.log('Organization created:', response);
+      // Call the backend service and use the response
+      await createOrganization(preparedFormData);
+
+      // Show success message
+      toast.success('Organization created successfully!');
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (error: any) {
-      console.error('Error creating organization:', error);
-      setError(error.message);
+
+      // Reset form or redirect
+      setTimeout(() => {
+        setSuccess(false);
+        // Reset form fields
+        setName('');
+        setAddress('');
+        setPlaceId('');
+        setCity('');
+        setFacilities([]);
+        setImageFiles([]);
+        setOrgContactPhone('');
+        setOrgContactEmail('');
+        setAdminNotes('');
+        setContactPhone('');
+        setOwnerEmail('');
+      }, 3000);
+    } catch (err: any) {
+      const statusCode = err.response?.status;
+      const errorMessage = err.response?.data?.message ?? err.message;
+
+      if (statusCode === 403) {
+        return <ErrorDisplay statusCode={403} />;
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage ?? 'Failed to create organization');
     } finally {
       setLoading(false);
     }
@@ -134,6 +193,11 @@ export default function OrganizationForm() {
     facilities.length > 0 &&
     orgContactPhone &&
     orgContactEmail;
+
+  // Add error check at the top of your render
+  if (error === 'Unauthorized' || error === 'Forbidden') {
+    return <ErrorDisplay statusCode={403} />;
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -173,6 +237,7 @@ export default function OrganizationForm() {
                 </h2>
               </div>
               <div className="p-6 space-y-4">
+                {/* Organization Name field */}
                 <div>
                   <label
                     htmlFor="name"
@@ -186,23 +251,64 @@ export default function OrganizationForm() {
                     onChange={e => setName(e.target.value)}
                     className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter organization name"
+                    required
                   />
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Owner Contact Information */}
+                  <div>
+                    <label
+                      htmlFor="contactPhone"
+                      className="block text-sm font-medium text-gray-900"
+                    >
+                      Owner Contact Phone*
+                    </label>
+                    <input
+                      id="contactPhone"
+                      type="tel"
+                      value={contactPhone}
+                      onChange={e => setContactPhone(e.target.value)}
+                      className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="01XXXXXXXXX"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="ownerEmail"
+                      className="block text-sm font-medium text-gray-900"
+                    >
+                      Owner Email*
+                    </label>
+                    <input
+                      id="ownerEmail"
+                      type="email"
+                      value={ownerEmail}
+                      onChange={e => setOwnerEmail(e.target.value)}
+                      className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="owner@example.com"
+                      required
+                    />
+                  </div>
+
+                  {/* Organization Contact Information */}
                   <div>
                     <label
                       htmlFor="orgContactPhone"
                       className="block text-sm font-medium text-gray-900"
                     >
-                      Contact Phone*
+                      Organization Contact Phone*
                     </label>
                     <input
                       id="orgContactPhone"
+                      type="tel"
                       value={orgContactPhone}
                       onChange={e => setOrgContactPhone(e.target.value)}
                       className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="+8801XXXXXXXXX"
+                      required
                     />
                   </div>
 
@@ -211,7 +317,7 @@ export default function OrganizationForm() {
                       htmlFor="orgContactEmail"
                       className="block text-sm font-medium text-gray-900"
                     >
-                      Contact Email*
+                      Organization Email*
                     </label>
                     <input
                       id="orgContactEmail"
@@ -219,26 +325,28 @@ export default function OrganizationForm() {
                       value={orgContactEmail}
                       onChange={e => setOrgContactEmail(e.target.value)}
                       className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="organization@example.com"
+                      placeholder="contact@organization.com"
+                      required
                     />
                   </div>
+                </div>
 
-                  <div>
-                    <label
-                      htmlFor="adminNotes"
-                      className="block text-sm font-medium text-gray-900"
-                    >
-                      Admin Notes
-                    </label>
-                    <textarea
-                      id="adminNotes"
-                      value={adminNotes}
-                      onChange={e => setAdminNotes(e.target.value)}
-                      className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
-                      rows={3}
-                      placeholder="Add any administrative notes here..."
-                    />
-                  </div>
+                {/* Admin Notes */}
+                <div>
+                  <label
+                    htmlFor="adminNotes"
+                    className="block text-sm font-medium text-gray-900"
+                  >
+                    Admin Notes
+                  </label>
+                  <textarea
+                    id="adminNotes"
+                    value={adminNotes}
+                    onChange={e => setAdminNotes(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Add any administrative notes here..."
+                  />
                 </div>
               </div>
             </div>
@@ -297,6 +405,55 @@ export default function OrganizationForm() {
                     onChange={e => setCity(e.target.value)}
                     className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter city"
+                  />
+                </div>
+
+                {/* New Area and Sub Area fields */}
+                <div>
+                  <label
+                    htmlFor="area"
+                    className="block text-sm font-medium text-gray-900"
+                  >
+                    Area
+                  </label>
+                  <input
+                    id="area"
+                    value={area}
+                    onChange={e => setArea(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter area (optional)"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="subArea"
+                    className="block text-sm font-medium text-gray-900"
+                  >
+                    Sub Area
+                  </label>
+                  <input
+                    id="subArea"
+                    value={subArea}
+                    onChange={e => setSubArea(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter sub area (optional)"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="postCode"
+                    className="block text-sm font-medium text-gray-900"
+                  >
+                    Post Code
+                  </label>
+                  <input
+                    id="postCode"
+                    value={postCode}
+                    onChange={e => setPostCode(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm sm:text-sm text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter post code (optional)"
                   />
                 </div>
 
@@ -411,11 +568,17 @@ export default function OrganizationForm() {
                 {imageFiles.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {imageFiles.map((file, index) => (
-                      <div key={index} className="relative group">
+                      <div key={file.name} className="relative group">
                         <img
-                          src={URL.createObjectURL(file)}
+                          src={file.preview ?? URL.createObjectURL(file)}
                           alt={`Preview ${index + 1}`}
                           className="object-cover w-full h-32 rounded-md"
+                          onLoad={() => {
+                            // If we created a new preview, revoke it after loading
+                            if (!file.preview) {
+                              URL.revokeObjectURL(URL.createObjectURL(file));
+                            }
+                          }}
                         />
                         <button
                           type="button"

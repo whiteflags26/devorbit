@@ -1,8 +1,8 @@
 import { NextFunction, Response } from 'express';
 import asyncHandler from '../../shared/middleware/async';
+import ErrorResponse from '../../utils/errorResponse';
 import { AuthRequest } from '../auth/auth.middleware';
 import { userService } from './user.service';
-import ErrorResponse from '../../utils/errorResponse'
 
 /**
  * @desc    Get all users
@@ -18,7 +18,7 @@ export const getUsersAdmin = asyncHandler(
       count: users.length,
       data: users,
     });
-  },
+  }
 );
 
 /**
@@ -30,7 +30,7 @@ export const getUserByIdAdmin = asyncHandler(
   async (
     req: AuthRequest & { params: { userId: string } },
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     const { userId } = req.params;
     const user = await userService.getUserByIdAdmin(userId);
@@ -39,7 +39,7 @@ export const getUserByIdAdmin = asyncHandler(
       success: true,
       data: user,
     });
-  },
+  }
 );
 
 /**
@@ -50,7 +50,7 @@ export const getUserByIdAdmin = asyncHandler(
 export const getCurrentUserProfile = asyncHandler(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user?.id) {
-      throw new ErrorResponse('Not authorized to access this route', 401);
+      throw new ErrorResponse("Not authorized to access this route", 401);
     }
 
     const userProfile = await userService.getCurrentUserProfile(req.user.id);
@@ -59,10 +59,10 @@ export const getCurrentUserProfile = asyncHandler(
       success: true,
       data: userProfile,
     });
-  }
+  },
 );
 
-/**
+/**c
  * @desc    Update current user profile
  * @route   PUT /api/v1/users/me
  * @access  Private
@@ -70,16 +70,19 @@ export const getCurrentUserProfile = asyncHandler(
 export const updateUserProfile = asyncHandler(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user?.id) {
-      throw new ErrorResponse('Not authorized to access this route', 401);
+      throw new ErrorResponse("Not authorized to access this route", 401);
     }
 
-    const userProfile = await userService.updateUserProfile(req.user.id, req.body);
+    const userProfile = await userService.updateUserProfile(
+      req.user.id,
+      req.body,
+    );
 
     res.status(200).json({
       success: true,
       data: userProfile,
     });
-  }
+  },
 );
 
 /**
@@ -90,21 +93,89 @@ export const updateUserProfile = asyncHandler(
 export const changePassword = asyncHandler(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user?.id) {
-      throw new ErrorResponse('Not authorized to access this route', 401);
+      throw new ErrorResponse("Not authorized to access this route", 401);
     }
 
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      throw new ErrorResponse('Please provide both current and new password', 400);
+      throw new ErrorResponse(
+        'Please provide both current and new password',
+        400,
+      );
     }
 
     const result = await userService.changeUserPassword(
       req.user.id,
       currentPassword,
-      newPassword
+      newPassword,
     );
 
     res.status(200).json(result);
-  }
+  },
+);
+
+/**
+ * @desc    Get organizations where user has a role
+ * @route   GET /api/v1/users/organizations
+ * @access  Private
+ */
+export const getUserOrganizations = asyncHandler(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user?.id) {
+      throw new ErrorResponse("Not authorized to access this route", 401);
+    }
+
+    const organizations = await userService.getUserOrganizations(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      count: organizations.length,
+      data: organizations,
+    });
+  },
+);
+
+/**
+ * @desc    Get users without global roles
+ * @route   GET /api/v1/users/without-global-roles
+ * @access  Private (Requires 'view_users' permission)
+ */
+export const getUsersWithoutGlobalRoles = asyncHandler(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const users = await userService.getUsersWithoutGlobalRoles();
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  },
+);
+
+/**
+ * @desc    Check if user has role in organization
+ * @route   GET /api/v1/users/check-organization-role/:organizationId
+ * @access  Private
+ */
+export const checkOrganizationRole = asyncHandler(
+  async (
+    req: AuthRequest & { params: { organizationId: string } },
+    res: Response,
+    next: NextFunction,
+  ) => {
+    if (!req.user?.id) {
+      throw new ErrorResponse('Not authorized to access this route', 401);
+    }
+
+    const hasRole = await userService.hasOrganizationRole(
+      req.user.id,
+      req.params.organizationId,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { hasRole },
+    });
+  },
 );

@@ -62,7 +62,7 @@ export default class TurfController {
         // Combine all parsed data
         const turfData: Partial<ITurf> = {
           name,
-          organization: new mongoose.Types.ObjectId(organization),
+          organization: organization.id,
           ...basePriceResult.data,
           ...sportsResult.data,
           ...operatingHoursResult.data,
@@ -188,7 +188,7 @@ export default class TurfController {
     },
   );
 
-  /**
+/**
  * @route PUT /api/v1/turfs/:id
  * @desc Update a turf's details and images by ID
  * @access Private/Admin

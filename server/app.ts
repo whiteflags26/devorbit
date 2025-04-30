@@ -12,27 +12,29 @@ connectDB();
 
 const app = express();
 
-const corsConfig = {
-  origin: '*', // Allow all origins
-  credentials: true, // If you need credentials (like cookies or tokens)
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow common methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+// CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['set-cookie'],
 };
 
 app.use(express.json());
 
 // Use the same corsOptions configuration consistently
-app.use(cors(corsConfig));
+app.use(cors(corsOptions));
 
 app.use(cookieParser());
 app.use(ExpressMongoSanitize());
 app.use(helmet());
 
 // Add pre-flight handling for all routes
-app.options('*', cors(corsConfig));
+app.options('*', cors(corsOptions));
 
 // Health monitoring middleware
-//setupHealthMonitoring(app);
+setupHealthMonitoring(app);
 
 app.use(router);
 app.use(errorHandler);
